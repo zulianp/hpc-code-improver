@@ -8,20 +8,73 @@ model's judgement.
 Model-agnostic (written for Grok 4.7 in Cursor, works with any agent model). Runs on macOS and
 Windows (and Linux); all tooling is Python 3.8+ standard library.
 
-## Install into a repository
+## Install
 
-Copy these into the repository root:
+Run this from inside the repository you want to improve. You need git and Python 3.8+.
 
-```
-AGENTS.md                       roles, lifecycle, hard rules
-.cursor/rules/*.mdc             always-on core rules + per-area checklists (auto-attached by glob)
-.cursor/commands/*.md           /hpc-setup /hpc-audit /hpc-propose /hpc-apply /hpc-review /hpc-address-review
-tools/agent/hpcgate.py          the gate (check, guard, tests-on-base, attack, doctor)
-.agent/hpcgate.example.json     gate config template -> copy to .agent/hpcgate.json
-.github/workflows/hpc-gate.yml  CI template (optional)
+**macOS / Linux**
+```sh
+curl -fsSL https://raw.githubusercontent.com/zulianp/hpc-code-improver/main/install.py | python3 - install
 ```
 
-Then run `/hpc-setup` in Cursor once, together with a human. The setup ends with an A/A noise check.
+**Windows (PowerShell)**
+```powershell
+irm https://raw.githubusercontent.com/zulianp/hpc-code-improver/main/install.py -OutFile $env:TEMP\hpci.py; python $env:TEMP\hpci.py install
+```
+
+**While this repository is private**, authenticate through the GitHub CLI (`gh auth login` once). The installer picks up the same token for the download.
+```sh
+# macOS / Linux
+curl -fsSL -H "Authorization: Bearer $(gh auth token)" -H "Accept: application/vnd.github.raw" \
+  https://api.github.com/repos/zulianp/hpc-code-improver/contents/install.py | python3 - install
+```
+```powershell
+# Windows (PowerShell)
+irm -Headers @{Authorization="Bearer $(gh auth token)"; Accept="application/vnd.github.raw"} https://api.github.com/repos/zulianp/hpc-code-improver/contents/install.py -OutFile $env:TEMP\hpci.py; python $env:TEMP\hpci.py install
+```
+Instead of `gh`, you can set `GH_TOKEN` (or `GITHUB_TOKEN`) to a token with read access to the repo.
+
+Then open the repository in Cursor and run `/hpc-setup` once, together with a human. It creates `.agent/hpcgate.json` and ends with an A/A noise check.
+
+### Update, status, uninstall
+
+Running the install command again updates the kit. For the other actions, run the same one-liner with `uninstall` or `status` in place of `install`, or use the copy the installer leaves in your repo:
+
+```sh
+python3 tools/agent/hpc-improver-install.py status       # what is installed, what was modified
+python3 tools/agent/hpc-improver-install.py install      # update to the latest main
+python3 tools/agent/hpc-improver-install.py uninstall    # remove the kit, keep your .agent data
+python3 tools/agent/hpc-improver-install.py uninstall --purge   # also remove .agent data and gate worktrees
+```
+On Windows, use `python` in place of `python3`.
+
+| Option | Effect |
+|---|---|
+| `--ref v1.0` | install a specific branch, tag or commit (default `main`) |
+| `--with-ci` | also install `.github/workflows/hpc-gate.yml` |
+| `--target DIR` | install into the git repo containing `DIR` (default: current directory) |
+| `--dry-run` | show what would change, write nothing |
+| `--force` | overwrite (install) or remove (uninstall) kit files you modified locally |
+| `--purge` | uninstall: also delete `.agent/hpcgate.json`, findings, work, reports and the gate's worktrees |
+| `--source PATH` | install from a local kit checkout or `.tar.gz` (offline) |
+
+How the installer stays safe:
+- It records every file it installs, with a checksum, in `.agent/.hpc-improver-manifest.json`. Updates and uninstall only touch files that are unchanged since installation; files you edited are reported and left alone unless you pass `--force`.
+- If your repo already has a file the kit ships (typically your own `AGENTS.md`), the installer saves it as `<file>.pre-hpc-improver` and restores it on uninstall. To keep your own content, merge it into the kit's `AGENTS.md` by hand.
+- It adds a marked block to `.gitignore` (`.agent/scratch/`, `.agent/reports/`, `tests/attack/`) and removes exactly that block on uninstall.
+- Uninstall keeps your data (gate config, findings, reviews, attack tests) unless you pass `--purge`.
+
+### What gets installed
+
+```
+AGENTS.md                            roles, lifecycle, hard rules
+.cursor/rules/*.mdc                  always-on core rules + per-area checklists (auto-attached by glob)
+.cursor/commands/*.md                /hpc-setup /hpc-audit /hpc-propose /hpc-apply /hpc-review /hpc-address-review
+tools/agent/hpcgate.py               the gate (check, guard, tests-on-base, attack, doctor)
+tools/agent/hpc-improver-install.py  copy of the installer (offline update/uninstall)
+.agent/hpcgate.example.json          gate config template -> /hpc-setup turns it into .agent/hpcgate.json
+.github/workflows/hpc-gate.yml       CI template (only with --with-ci)
+```
 
 ## The loop
 
