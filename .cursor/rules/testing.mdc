@@ -1,0 +1,33 @@
+---
+description: Testing and regression-testing rules. Use when writing, changing or reviewing tests, test data, or benchmarks.
+globs: ["**/test/**", "**/tests/**", "**/*_test.*", "**/test_*.*", "**/bench/**", "**/benchmarks/**"]
+alwaysApply: false
+---
+
+# Testing rules
+
+## Test-first, and prove the test bites
+- Bug fix: write the test first. It must fail on the base and pass with the fix:
+  `python tools/agent/hpcgate.py tests-on-base --expect fail`
+- Refactor / performance change: first write characterization tests that pin the current behaviour (outputs, edge cases). They must pass on the base AND on the candidate:
+  `python tools/agent/hpcgate.py tests-on-base --expect pass`
+- A test that passes on both sides for a bug fix doesn't test the fix. Rewrite it.
+
+## Numerical tests
+- Compare with a tolerance derived from the problem (condition number, discretization order, accumulated rounding: roughly `n * eps * |x|` for a sum of n terms). Never pick it by trial and error. Write the justification in a comment next to the tolerance.
+- Use relative + absolute tolerance (`|a-b| <= atol + rtol*|b|`). Pure relative tolerance fails at zero.
+- Cover: zero-size input, size 1, non-multiples of the SIMD width/tile size, sizes above 2^31 elements for index types (as a stress test that is excluded from the default run if too slow), NaN/Inf inputs, denormals, aliasing (in == out), unaligned pointers.
+- Convergence tests for discretizations: check the observed order on 2-3 refinements, not only one value.
+- Parallel code: run with 1, 2 and odd thread counts (e.g. 3, 7). Results must be deterministic with a fixed thread count, or the test must state the nondeterminism bound.
+
+## Regression tests
+- Reference outputs (golden files) are versioned and small, together with the script that produced them. Never regenerate goldens to make a test pass. If they have to change, that is its own finding with a numerical argument and human sign-off.
+- Sanitizer builds (ASan+UBSan on Clang/GCC, `/fsanitize=address` on MSVC) must run the test suite in CI. ThreadSanitizer for threaded code where supported.
+
+## Benchmarks
+- Google Benchmark (or the configured format). Prevent dead-code elimination (`benchmark::DoNotOptimize`, `ClobberMemory`). Fix input sizes and seeds.
+- Separate setup from the timed region. Cover in-cache and out-of-cache sizes.
+- A benchmark must exist and pass the gate on the base before it is used to judge an optimization.
+
+## Forbidden
+Deleting, skipping (`GTEST_SKIP`, `DISABLED_`, `pytest.mark.skip/xfail`), weakening assertions, widening tolerances, or regenerating goldens to make a change pass.

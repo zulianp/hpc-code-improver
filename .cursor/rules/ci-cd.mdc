@@ -1,0 +1,23 @@
+---
+description: CI/CD rules for GitHub Actions / GitLab CI and build configuration. Use when auditing CI or proposing CI changes (CI files themselves are human-owned).
+globs: [".github/**", ".gitlab-ci.yml", "**/CMakePresets.json", "**/CMakeLists.txt", "**/*.cmake", ".pre-commit-config.yaml"]
+alwaysApply: false
+---
+
+# CI/CD rules
+
+CI files are protected. The agent **proposes** CI changes as a patch file in `.agent/work/F-NNN/ci.patch` with a rationale. A human applies it.
+
+## What a healthy pipeline has (audit against this list)
+- A matrix that covers macOS (arm64, `macos-latest`), Windows (MSVC, `windows-latest`) and Linux (GCC + Clang), with Debug and Release.
+- Warnings as errors on at least one strict job (`-Wall -Wextra -Wpedantic -Wconversion`, `/W4 /permissive-`).
+- Sanitizer jobs (ASan+UBSan, TSan where threads are used).
+- The `hpcgate check` correctness stages on every PR. Perf on shared runners only in `--perf-advisory` mode. Blocking perf only on a dedicated or self-hosted runner with fixed CPU frequency.
+- A reproducible toolchain: pinned action versions (by SHA), pinned compiler/CMake versions, `CMakePresets.json` shared by CI and developers.
+- Caching (ccache/sccache, dependency caches) keyed on compiler + lockfiles. A cache must never change results.
+- Fast feedback: format/lint/guard checks first (seconds), full matrix after.
+- Artifacts: gate reports and test logs uploaded on failure.
+- Least privilege: `permissions: contents: read` by default, no secrets in PR jobs from forks.
+
+## Findings in this category
+Name the failure the gap allows: "a Windows-only overflow in `long` cannot be caught because no MSVC job exists", not "should add Windows CI".

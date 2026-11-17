@@ -1,0 +1,33 @@
+---
+description: Portability rules for macOS (Apple Clang, arm64/x86_64) and Windows (MSVC, clang-cl), plus Linux. Use when auditing, changing or reviewing source, build files or scripts.
+globs: ["**/*.c", "**/*.cc", "**/*.cpp", "**/*.cxx", "**/*.h", "**/*.hpp", "**/*.cu", "**/CMakeLists.txt", "**/*.cmake", "**/*.py", "**/meson.build", "**/Makefile"]
+alwaysApply: false
+---
+
+# Portability rules
+
+Target matrix: macOS arm64 + x86_64 (Apple Clang), Windows x64 (MSVC, clang-cl), Linux x86_64/aarch64 (GCC, Clang).
+You probably run on only one of these. Anything you change that matters on the others is `UNVERIFIED-<platform>` until CI shows it.
+
+## Data model and types
+- Windows is LLP64: `long` is 32 bits. Never use `long` for sizes, offsets or indices. Use `std::size_t`, `std::ptrdiff_t`, `std::int64_t`.
+- Index types: large meshes/matrices overflow `int` (2^31). Check every `int` that counts elements, nonzeros or bytes. `int*int` overflows before it's widened.
+- Don't assume `char` signedness (it is unsigned on arm64 Linux), endianness in serialization, or `sizeof(wchar_t)`.
+
+## Compilers
+- Wrap non-standard extensions in macros in one header: `__restrict` / `__restrict__`, `__attribute__((always_inline))` vs `__forceinline`, `__builtin_expect`, `__builtin_prefetch`, alignment attributes.
+- Intrinsics: x86 SSE/AVX headers don't exist on Apple Silicon or Windows-on-ARM. Guard them with `__x86_64__ || _M_X64` and provide a scalar or NEON path. Prefer `std::experimental::simd`, xsimd, Highway or compiler auto-vectorization.
+- MSVC: OpenMP is 2.0 by default (`/openmp:llvm` for more), no VLAs, different two-phase lookup, `/permissive-` strictness, `/Zc:__cplusplus` for a correct `__cplusplus`. `min`/`max` macros from `<windows.h>`: define `NOMINMAX`.
+- Apple Clang ships without OpenMP (`libomp` via Homebrew needs `-Xpreprocessor -fopenmp` + `-lomp`). Build files must find it through `find_package(OpenMP)` and not hard-code flags. The code must still build and run correctly without OpenMP.
+- Default FP contraction differs (Apple Clang contracts to FMA by default on arm64). If results must match across platforms, set `-ffp-contract=off` / `/fp:precise` explicitly and document it.
+
+## Build system
+- CMake: target-based (`target_compile_options`, `target_link_libraries`). No global `CMAKE_CXX_FLAGS` edits. Use generator expressions for compiler-specific flags. Multi-config generators (Visual Studio, Xcode) mean `CMAKE_BUILD_TYPE` is ignored; use `--config`.
+- No hard-coded paths, `/usr/local`, `/opt/homebrew`, `C:\`. No shell-specific commands in `add_custom_command` (use `${CMAKE_COMMAND} -E`).
+- Shared libraries on Windows need export macros (`__declspec(dllexport/dllimport)`) or `WINDOWS_EXPORT_ALL_SYMBOLS`. Check that symbol visibility is consistent.
+
+## Runtime and filesystem
+- Paths: `std::filesystem::path`, never string concatenation with `/`. Case-insensitive filesystems (macOS default, Windows): no two files that differ only in case.
+- Text vs binary file modes (CRLF on Windows). `.gitattributes` must pin `* text=auto` and binary test data as `binary`.
+- Timers: `std::chrono::steady_clock`, not `clock()` (it is CPU time on POSIX and wall time on Windows).
+- Scripts for tooling, tests and CI: Python (standard library) or CMake scripts. No bash-only or PowerShell-only logic on required paths.

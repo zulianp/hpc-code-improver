@@ -1,0 +1,30 @@
+---
+description: Performance checklist for HPC code (C, C++, CUDA/HIP/SYCL, Fortran, kernels). Use when auditing, changing or reviewing performance-relevant code.
+globs: ["**/*.c", "**/*.cc", "**/*.cpp", "**/*.cxx", "**/*.h", "**/*.hh", "**/*.hpp", "**/*.cu", "**/*.cuh", "**/*.f90", "**/*.F90", "**/*.f", "**/*.ispc"]
+alwaysApply: false
+---
+
+# Performance rules
+
+## Measure before claiming
+- A performance finding has to name the hot path (a profile, a benchmark, or complexity on realistic sizes), not just a code smell.
+- Every performance change needs a benchmark that exercises the changed path at realistic sizes (in cache AND out of cache). If none exists, adding it comes first, in its own commit, before the optimization.
+- Report effect sizes from the gate (median change, p-value), never a single run.
+
+## What to look for
+- Algorithmic: hidden O(n²) (searches in loops, `std::find` on vectors, repeated `erase`), recomputation that could be hoisted, redundant passes over large arrays.
+- Memory: allocations in hot loops (`new`, `std::vector` temporaries, `std::string`, `std::function`), AoS vs SoA, strided/indirect access, missing `reserve`, copies where move/view would do (`std::span`, `const&`), false sharing of per-thread accumulators (pad to 64 B on x86 and 128 B on Apple M-series).
+- Vectorization: aliasing that blocks it (`__restrict` is not portable — use a macro, see portability rule), non-unit stride, branches in inner loops, `int`/`size_t` mixed induction variables, calls that don't inline across TUs (consider LTO before manual inlining).
+- Parallelism: load imbalance (`schedule(static)` on irregular work), serialization (`critical`/atomics in hot loops), oversubscription (nested OpenMP + threaded BLAS), NUMA first touch, thread creation per call.
+- I/O and logging in hot paths, `std::endl` flushes, debug checks compiled into release builds.
+- GPU: host-device transfers in loops, uncoalesced access, implicit synchronizations, launch overhead for tiny kernels.
+
+## Changes that change results (need explicit sign-off)
+Anything that reorders floating-point operations changes the bits of the result: reassociation, a different reduction order, parallel reductions, FMA contraction (`-ffp-contract`, which differs between Apple Clang, GCC and MSVC defaults), different math library calls, mixed precision.
+- These are allowed only when the finding says so, the proposal argues the error bound, and the outputs stage passes with the configured `rtol`.
+- Never introduce run-to-run nondeterminism silently. If a parallel reduction becomes order-dependent, document it and provide a deterministic mode, or don't do it.
+
+## Not allowed
+- `-ffast-math`, `-Ofast`, `/fp:fast`, `-funsafe-math-optimizations`, `-ffinite-math-only` (they silently break NaN/Inf handling and compensated summation).
+- `-march=native` in default or shipped builds (it breaks binaries on other machines). Use runtime dispatch or an opt-in CMake option.
+- Micro-optimizations with no measured effect: if the gate shows < max_regression change, revert them as noise.

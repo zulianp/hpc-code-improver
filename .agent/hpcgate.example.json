@@ -1,0 +1,41 @@
+{
+  "_comment": "Copy to .agent/hpcgate.json and adapt. Commands run through the platform shell (cmd.exe on Windows, sh on macOS). Keys 'default' | 'windows' | 'darwin' | 'linux'. {out} and {out_dir} are replaced by absolute paths.",
+
+  "default_base": "origin/main",
+
+  "configure": {
+    "default": "cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DBUILD_BENCHMARKS=ON",
+    "windows": "cmake -S . -B build -G \"Visual Studio 17 2022\" -A x64 -DBUILD_TESTING=ON -DBUILD_BENCHMARKS=ON"
+  },
+  "build": {
+    "default": "cmake --build build --parallel",
+    "windows": "cmake --build build --config Release --parallel"
+  },
+  "test": {
+    "default": "ctest --test-dir build --output-on-failure --timeout 600",
+    "windows": "ctest --test-dir build -C Release --output-on-failure --timeout 600"
+  },
+
+  "outputs": {
+    "_comment": "Optional. Runs representative problems and writes numeric results (CSV/whitespace text) into {out_dir}. Base and candidate outputs are compared token by token.",
+    "default": "build/examples/run_reference_cases --out {out_dir}",
+    "windows": "build\\examples\\Release\\run_reference_cases.exe --out {out_dir}"
+  },
+  "numeric": { "rtol": 1e-12, "atol": 1e-300 },
+
+  "bench": {
+    "_comment": "Optional but strongly recommended. Must write JSON to {out}. Keep total runtime per invocation to ~10-60 s.",
+    "default": "build/bench/bench_all --benchmark_format=json --benchmark_out={out} --benchmark_repetitions=5 --benchmark_min_warmup_time=0.2",
+    "windows": "build\\bench\\Release\\bench_all.exe --benchmark_format=json --benchmark_out={out} --benchmark_repetitions=5 --benchmark_min_warmup_time=0.2"
+  },
+  "bench_format": "google-benchmark",
+  "bench_metric": "real_time",
+  "perf": { "rounds": 6, "max_regression": 0.03, "alpha": 0.01 },
+
+  "test_globs": ["tests/*", "test/*", "*/tests/*", "*/test/*", "*_test.*", "*_tests.*", "test_*.*", "*/test_*.*"],
+  "protected_paths": [".agent/hpcgate.json", "tools/agent/*", ".cursor/rules/*", ".cursor/commands/*", "AGENTS.md", ".github/workflows/*"],
+
+  "test_timeout_s": 3600,
+  "bench_timeout_s": 1800,
+  "outputs_timeout_s": 1800
+}

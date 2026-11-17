@@ -1,0 +1,24 @@
+---
+description: API design and compatibility rules for public headers, library interfaces and Python bindings. Use when auditing, changing or reviewing an interface.
+globs: ["**/include/**", "**/*.h", "**/*.hpp", "**/*.pyi", "**/bindings/**", "**/python/**"]
+alwaysApply: false
+---
+
+# API design rules
+
+## Compatibility is a correctness property
+- Find out what is public: installed headers, exported symbols, Python package `__all__`, documented CLI flags and file formats. Everything else is internal.
+- Do not change a public signature, default argument, semantics, units, ownership, thread-safety guarantee or error behaviour unless the finding explicitly says it is a breaking change and proposes deprecation first (`[[deprecated("use X")]]`, one release cycle).
+- ABI (shared libraries): adding virtual functions, changing class layout or changing inline functions breaks ABI. Note it in the proposal.
+
+## What good looks like
+- Sizes and indices as `std::size_t`/`std::int64_t` (or a project index typedef), consistently.
+- Non-owning views for array arguments (`std::span<const T>`, pointer + size), with ownership documented. No raw `new`/`delete` across the API boundary.
+- Errors: one consistent mechanism per layer (exceptions, `std::expected`-style, or error codes). Never silent failure, never `exit()` in library code.
+- Hot-path APIs must not force allocations or virtual dispatch per element. Batch interfaces instead.
+- Const-correctness; `noexcept` only where it is guaranteed; `[[nodiscard]]` on returned error states.
+- Thread safety documented per function or class.
+- Units and conventions (row/column-major, 0/1-based, in/out arguments) documented at the declaration.
+
+## Findings in this category
+Each API finding names the concrete misuse it enables or the cost it imposes (e.g. "forces a copy of the 8 GB matrix at solver.hpp:120"). Taste alone isn't a finding.

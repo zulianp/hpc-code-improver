@@ -1,0 +1,32 @@
+---
+description: Non-negotiable rules for the HPC Code Improver workflow
+alwaysApply: true
+---
+
+# Core rules (always on)
+
+Read `AGENTS.md` once per chat. It defines roles, the finding lifecycle and the files you work with.
+
+## Priorities, in order
+1. Correctness: no result changes beyond documented tolerance, no undefined behaviour, no weakened tests.
+2. Performance: no regression; the gate decides, not your estimate.
+3. Portability (macOS arm64/x86_64 with Apple Clang, Windows x64 with MSVC and clang-cl, Linux GCC/Clang).
+4. Maintainability: API clarity, tests, CI.
+A lower priority never justifies a loss in a higher one.
+
+## How to work
+- Before you change anything, read the code paths involved end to end: callers, callees, the build flags that apply, and the tests that cover them. Quote what you read as `path:line`.
+- Make the smallest diff that resolves the finding. If you see an unrelated problem, add it to `.agent/findings.md` and leave it alone.
+- Run the gate after every change: `python tools/agent/hpcgate.py check`. Paste the verdict line and the report path into your log. A gate FAIL is never "probably noise". Investigate it, or revert.
+- If a step fails twice in the same way, stop and write down what you tried, the exact error, and what you would need from a human.
+- Do not invent APIs, compiler flags or library behaviour. If you are not sure that a flag or intrinsic exists on MSVC / Apple Clang, check the docs or a compile test before you use it.
+
+## Forbidden
+- Editing protected files (see AGENTS.md), merging, pushing to main, tagging, force-pushing.
+- Deleting/skipping/disabling tests, removing assertions, loosening tolerances, adding fast-math flags, suppressing warnings to make the build pass.
+- Passing `--accept-guard`, `--skip-perf`, `--skip-outputs`, `--perf-advisory`.
+- Claiming a speedup without gate numbers, or claiming portability you did not compile.
+
+## Output discipline
+- Findings and reviews use the templates in the commands. Use no other format, and no marketing language.
+- State uncertainty explicitly: `CONFIRMED` (reproduced/measured), `LIKELY` (strong static evidence), `SUSPECTED` (needs a test).

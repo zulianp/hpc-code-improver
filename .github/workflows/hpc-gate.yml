@@ -1,0 +1,40 @@
+# Template — a human installs this (CI files are protected from the agent).
+# Correctness stages block on every PR, on macOS and Windows.
+# Perf is advisory on shared runners (too noisy to block); make it blocking only on a
+# dedicated self-hosted runner by removing --perf-advisory there.
+name: hpc-gate
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  gate:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4   # pin to a SHA in production
+        with:
+          fetch-depth: 0            # the gate needs the base commit for its worktree
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install OpenMP (macOS)
+        if: runner.os == 'macOS'
+        run: brew install libomp
+      - name: Set up MSVC (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+      - name: Guard (fast, no build)
+        run: python tools/agent/hpcgate.py guard --base origin/${{ github.base_ref }}
+      - name: Gate
+        run: python tools/agent/hpcgate.py check --base origin/${{ github.base_ref }} --perf-advisory
+      - name: Upload gate report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hpcgate-${{ matrix.os }}
+          path: .agent/reports/
