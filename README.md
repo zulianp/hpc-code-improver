@@ -36,6 +36,8 @@ Instead of `gh`, you can set `GH_TOKEN` (or `GITHUB_TOKEN`) to a token with read
 
 Then open the repository in Cursor and run `/hpc-setup` once, together with a human. It creates `.agent/hpcgate.json` and ends with an A/A noise check.
 
+After that, `/hpc` (or asking the agent to improve the code) follows the `hpc-improver` skill. You pick which findings to address, and you approve or reject each finished branch. The agent does the proposal, the fix, the gate, and the adversarial review without stopping. A performance change is shown on a canvas, base against candidate, from the gate report.
+
 ### Update, status, uninstall
 
 Running the install command again updates the kit. For the other actions, run the same one-liner with `uninstall` or `status` in place of `install`, or use the copy the installer leaves in your repo:
@@ -69,7 +71,8 @@ How the installer stays safe:
 ```
 AGENTS.md                            roles, lifecycle, hard rules
 .cursor/rules/*.mdc                  always-on core rules + per-area checklists (auto-attached by glob)
-.cursor/commands/*.md                /hpc-setup /hpc-audit /hpc-propose /hpc-apply /hpc-review /hpc-address-review
+.cursor/commands/*.md                /hpc-setup (once) and /hpc
+.cursor/skills/hpc-improver/         the loop: audit, implement, isolated review, perf canvas
 tools/agent/hpcgate.py               the gate (check, guard, tests-on-base, attack, doctor)
 tools/agent/hpc-improver-install.py  copy of the installer (offline update/uninstall)
 .agent/hpcgate.example.json          gate config template -> /hpc-setup turns it into .agent/hpcgate.json
@@ -79,19 +82,22 @@ tools/agent/hpc-improver-install.py  copy of the installer (offline update/unins
 ## The loop
 
 ```
-/hpc-audit ─► findings.md ─► /hpc-propose F-NNN ─► (human may veto) ─► /hpc-apply F-NNN
-                                                                           │ test first, then fix,
-                                                                           │ gate PASS required
-                                     ┌─────────────────────────────────────┘
-                                     ▼
-                     NEW CHAT: /hpc-review F-NNN   (adversary)
-                       hypotheses ─► runnable attack tests ─► hpcgate attack
-                                     │
-          APPROVE ◄──────────────────┼──────────► CHANGES / REJECT
-             │                       │                  │
-   ready-for-human (human merges)    │          /hpc-address-review: promote failing
-                                     │          attacks into the suite, fix, re-gate
-                                     └───────── (max 2 rounds, then escalate)
+/hpc ─► audit ─► findings.md ─► YOU CHOOSE which findings
+                                  │
+                                  ▼  (no further questions)
+                    proposal recorded ─► test first, then fix, gate PASS
+                                  │
+                                  ▼
+                    adversary subagent (does not see this chat)
+                      hypotheses ─► runnable attack tests ─► hpcgate attack
+                                  │
+          APPROVE + gate PASS ────┼──────────► CHANGES / REJECT
+                 │                │                  │
+                 ▼                │          same chat: promote failing attacks,
+          perf: canvas,           │          fix, re-gate, fresh adversary
+          YOU APPROVE the branch  └───────── (max 2 rounds, then escalate)
+                 │
+          ready-for-human (you merge)
 ```
 
 ## What the gate enforces (`python tools/agent/hpcgate.py ...`)
@@ -110,14 +116,14 @@ repo), so there are no stale baselines, and laptop thermal drift is cancelled by
 
 ## Why the review is adversarial and evidence-based
 
-- The reviewer runs in a fresh chat and starts from the diff and the promised invariants, not from the implementer's reasoning.
+- The reviewer is a new subagent. It does not receive this chat, and it starts from the diff and the promised invariants, not from the implementer's reasoning.
 - It has to enumerate hypotheses over a fixed checklist (numerics, edge sizes, memory, concurrency, portability, API, performance, tests, build).
 - **A claim can only block if a runnable attack test demonstrates it**, and the attack is classified mechanically against the base. Unproven concerns are listed but never block.
-- Attacks are written in the project's own test framework, so the useful ones get promoted into the permanent suite (`/hpc-address-review`); pre-existing defects turn into new findings with a ready-made test.
-- Optional: run `/hpc-review` with a different model than the implementer, to reduce correlated blind spots.
+- Attacks are written in the project's own test framework, so the useful ones get promoted into the permanent suite in the same chat; pre-existing defects turn into new findings with a ready-made test.
+- Optional: start the adversary subagent on a different model than the implementer, to reduce correlated blind spots.
 
 ## Human-only controls
-`--accept-guard "<reason>"`, `--skip-perf`, `--skip-outputs`, `--perf-advisory`, edits to the gate config, rules, commands and CI, and merging. Reports record every override.
+`--accept-guard "<reason>"`, `--skip-perf`, `--skip-outputs`, `--perf-advisory`, edits to the gate config, rules, commands, the improver skill, and CI, and merging. Reports record every override.
 
 ## Known limits
 - Perf gating on a laptop needs AC power and an idle machine; the A/A check tells you whether your threshold is above the noise. On shared CI runners, perf is advisory.

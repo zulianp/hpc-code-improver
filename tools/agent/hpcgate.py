@@ -331,7 +331,7 @@ def build(cfg: dict, cwd: Path, key: str, label: str) -> None:
 DEFAULT_TEST_GLOBS = ["tests/*", "test/*", "*/tests/*", "*/test/*", "*_test.*", "*_tests.*",
                       "test_*.*", "*/test_*.*", "*Test.*", "*Tests.*"]
 PROTECTED_PATHS = [".agent/hpcgate.json", "tools/agent/*", ".cursor/rules/*", ".cursor/commands/*",
-                   "AGENTS.md", ".github/workflows/*"]
+                   ".cursor/skills/*", "AGENTS.md", ".github/workflows/*"]
 # Lines whose *removal* from a test file weakens it.
 _ASSERT = re.compile(r"\b(assert\w*|EXPECT_\w+|ASSERT_\w+|REQUIRE\w*|CHECK\w*|BOOST_\w*CHECK\w*|"
                      r"TEST_ASSERT\w*|static_assert|assertAlmostEqual|allclose|isclose)\b")

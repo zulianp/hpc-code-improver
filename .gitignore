@@ -1,3 +1,8 @@
 .agent/scratch/
 .agent/reports/
 __pycache__/
+# hpc-code-improver (managed: removed by uninstall)
+.agent/scratch/
+.agent/reports/
+tests/attack/
+# hpc-code-improver (managed: removed by uninstall)

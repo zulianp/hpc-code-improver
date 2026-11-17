@@ -10,6 +10,7 @@ alwaysApply: false
 - A performance finding has to name the hot path (a profile, a benchmark, or complexity on realistic sizes), not just a code smell.
 - Every performance change needs a benchmark that exercises the changed path at realistic sizes (in cache AND out of cache). If none exists, adding it comes first, in its own commit, before the optimization.
 - Report effect sizes from the gate (median change, p-value), never a single run.
+- When the change is ready for the user, show base against candidate on a canvas, from the gate report. Follow `.cursor/skills/hpc-improver/perf-canvas.md`.
 
 ## What to look for
 - Algorithmic: hidden O(n²) (searches in loops, `std::find` on vectors, repeated `erase`), recomputation that could be hoisted, redundant passes over large arrays.

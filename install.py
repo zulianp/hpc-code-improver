@@ -43,8 +43,8 @@ GITIGNORE_LINES = [".agent/scratch/", ".agent/reports/", "tests/attack/"]
 GITIGNORE_MARK = "# hpc-code-improver (managed: removed by uninstall)"
 
 # Files that belong to the kit (relative to the kit root). Directories are expanded.
-KIT_ITEMS = ["AGENTS.md", ".cursor/rules", ".cursor/commands", "tools/agent/hpcgate.py",
-             ".agent/hpcgate.example.json"]
+KIT_ITEMS = ["AGENTS.md", ".cursor/rules", ".cursor/commands", ".cursor/skills",
+             "tools/agent/hpcgate.py", ".agent/hpcgate.example.json"]
 CI_ITEMS = [".github/workflows/hpc-gate.yml"]
 SELF_DEST = "tools/agent/hpc-improver-install.py"  # copy of this script, for offline uninstall/update
 # Created by using the kit; removed only with --purge.

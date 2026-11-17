@@ -33,7 +33,7 @@
   "perf": { "rounds": 6, "max_regression": 0.03, "alpha": 0.01 },
 
   "test_globs": ["tests/*", "test/*", "*/tests/*", "*/test/*", "*_test.*", "*_tests.*", "test_*.*", "*/test_*.*"],
-  "protected_paths": [".agent/hpcgate.json", "tools/agent/*", ".cursor/rules/*", ".cursor/commands/*", "AGENTS.md", ".github/workflows/*"],
+  "protected_paths": [".agent/hpcgate.json", "tools/agent/*", ".cursor/rules/*", ".cursor/commands/*", ".cursor/skills/*", "AGENTS.md", ".github/workflows/*"],
 
   "test_timeout_s": 3600,
   "bench_timeout_s": 1800,

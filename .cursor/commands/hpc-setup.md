@@ -19,3 +19,4 @@
    Propose this as a patch for the human. `tests/attack/` must also be in `.gitignore` so attack files only get into the suite through promotion.
 4. After the human has installed `.agent/hpcgate.json`, run the **A/A noise check** on a clean tree: `python tools/agent/hpcgate.py check`. With no changes, perf must PASS. Run it 3 times. If any run reports a REGRESSION, the threshold is below this machine's noise. Recommend a larger `max_regression`, more `rounds`, or quieter conditions (AC power, no other load, Windows "High performance" power plan, macOS: no Low Power Mode).
 5. Create `.agent/findings.md` with the ledger header, and add to `.gitignore`: `.agent/scratch/`, `.agent/reports/`, `tests/attack/`.
+6. Stop. The improvement loop is `.cursor/skills/hpc-improver/SKILL.md` (`/hpc`). The user picks findings and approves finished branches. Do not continue into an audit unless they ask.

@@ -5,7 +5,9 @@ alwaysApply: true
 
 # Core rules (always on)
 
-Read `AGENTS.md` once per chat. It defines roles, the finding lifecycle and the files you work with.
+Read `AGENTS.md` once per chat. It defines the finding lifecycle and the files you work with.
+
+When the user wants the repository audited or improved, follow `.cursor/skills/hpc-improver/SKILL.md`. Stop only for the choice of findings and for approval of each finished branch. Do not ask them to run the next command or open another chat.
 
 ## Priorities, in order
 1. Correctness: no result changes beyond documented tolerance, no undefined behaviour, no weakened tests.
@@ -24,9 +26,10 @@ A lower priority never justifies a loss in a higher one.
 ## Forbidden
 - Editing protected files (see AGENTS.md), merging, pushing to main, tagging, force-pushing.
 - Deleting/skipping/disabling tests, removing assertions, loosening tolerances, adding fast-math flags, suppressing warnings to make the build pass.
-- Passing `--accept-guard`, `--skip-perf`, `--skip-outputs`, `--perf-advisory`.
+- Passing `--accept-guard`, `--skip-outputs`, `--perf-advisory`, or `--skip-perf` on the gate for a change. The baseline sanity check in the hpc-improver skill is the only `--skip-perf`, and it is not the verdict.
 - Claiming a speedup without gate numbers, or claiming portability you did not compile.
 
 ## Output discipline
-- Findings and reviews use the templates in the commands. Use no other format, and no marketing language.
+- Findings, proposals, and reviews use the templates in `.cursor/skills/hpc-improver/`. Use no other format, and no marketing language.
+- A performance change is shown on a canvas from the gate report, base against candidate. See `.cursor/skills/hpc-improver/perf-canvas.md`.
 - State uncertainty explicitly: `CONFIRMED` (reproduced/measured), `LIKELY` (strong static evidence), `SUSPECTED` (needs a test).

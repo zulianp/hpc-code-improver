@@ -10,37 +10,46 @@ Two properties are non-negotiable and outrank every other goal:
 
 The gate `python tools/agent/hpcgate.py check` is how both are checked mechanically. A change that has not passed the gate is not done, however convincing the explanation is.
 
-## Roles (each in a separate Cursor chat)
+## How a chat runs
 
-| Role | Command | Writes code? | Sees |
+Follow `.cursor/skills/hpc-improver/SKILL.md`. The user has two decisions:
+
+1. **Choice.** After the audit, they pick which open findings to address.
+2. **Approval.** After a finding is implemented and the review verdict is `APPROVE` with a gate PASS, they accept or reject that branch. For a performance finding, the approval view is a canvas of the gate's base and candidate medians.
+
+They do not approve the proposal, and they do not start a second chat for review. `/hpc` is the entry point. `/hpc-setup` still runs once, with a human, because `.agent/hpcgate.json` is human-owned.
+
+## Roles
+
+| Role | Who | Writes code? | Sees |
 |---|---|---|---|
-| Auditor | `/hpc-audit` | no | the repository |
-| Implementer | `/hpc-propose`, `/hpc-apply`, `/hpc-address-review` | yes, on `agent/F-NNN` branches only | finding, proposal, review |
-| Adversary | `/hpc-review` | only attack tests in `.agent/work/F-NNN/attack/` (then proposes them) | the diff, the finding, gate report — **not** the implementer's chat |
+| Auditor and implementer | this chat | yes, on `agent/F-NNN` branches only, after the user has chosen that finding | the repository, the finding, the proposal, the review |
+| Adversary | a new Task subagent each round (`generalPurpose`). Never `resume: "self"` | only attack tests in `.agent/work/F-NNN/attack/` | the diff, the finding, the proposal, the gate report. Not this chat, not `apply-log.md` until its hypotheses are written |
 
-Run the Adversary in a **new chat** each round. Re-using the implementer's chat lets it inherit the implementer's assumptions, and the review stops being adversarial.
+The subagent does not receive the parent conversation. Pass it the finding id and the paths in the skill, and tell it to read `.cursor/skills/hpc-improver/review.md`.
 
 ## Lifecycle of one finding
 
 ```
-audit ──> F-NNN in .agent/findings.md (status: open)
+audit ──> findings.md (status: open) ──> USER CHOOSES
    │
-propose ──> .agent/work/F-NNN/proposal.md          (status: proposed)   ← human may veto here
+proposal (recorded, no stop) ──> branch agent/F-NNN: test first, then fix; gate PASS
    │
-apply ──> branch agent/F-NNN: test first, then fix; gate PASS   (status: applied)
-   │
-review (new chat) ──> .agent/work/F-NNN/review-K.md  verdict: APPROVE | CHANGES | REJECT
+adversary subagent ──> review-K.md: APPROVE | CHANGES | REJECT
    │        ▲
-   │        └── address-review (max 2 rounds, then status: escalated → human)
+   │        └── address the review in this chat (max 2 rounds, then status: escalated)
    ▼
-APPROVE + gate PASS ──> status: ready-for-human. A human merges. Agents never merge, push to main or tag.
+APPROVE + gate PASS ──> canvas when the finding is performance
+                     ──> USER APPROVES ──> status: ready-for-human
 ```
+
+A human merges. Agents never merge, push to main, or tag. Commits on `agent/F-NNN` during implementation are part of the loop, because the gate requires the test commit to land before the fix.
 
 ## Hard rules for every role
 
-- Never edit: `.agent/hpcgate.json`, `tools/agent/*`, `.cursor/rules/*`, `.cursor/commands/*`, `AGENTS.md`, `.github/workflows/*`. The gate's guard stage blocks these. If one of them is wrong, record it as a finding for a human.
+- Never edit: `.agent/hpcgate.json`, `tools/agent/*`, `.cursor/rules/*`, `.cursor/commands/*`, `.cursor/skills/*`, `AGENTS.md`, `.github/workflows/*`. The gate's guard stage blocks these. If one of them is wrong, record it as a finding for a human.
 - Never delete, skip, disable, or loosen a test, assertion or tolerance in order to make something pass. Never add `-ffast-math`, `-Ofast`, `/fp:fast` or similar.
-- Never pass `--accept-guard`, `--skip-perf`, `--skip-outputs` or `--perf-advisory` on your own. Only a human may, and the report records it.
+- Never pass `--accept-guard`, `--skip-outputs` or `--perf-advisory`. Never pass `--skip-perf` except the baseline sanity check in `.cursor/skills/hpc-improver/implement.md`, which is not the verdict for the change. Only a human may pass the others, and the report records it.
 - One finding = one branch = one minimal diff. No drive-by refactors or formatting changes in the same diff.
 - Every claim needs evidence: a `file:line`, a command output, a gate report, or a test. "Should be faster" isn't evidence.
 - If you cannot verify something on this machine (e.g. a Windows-only path while on macOS), say so explicitly and mark it `UNVERIFIED-<platform>`. Do not claim it works.
@@ -52,3 +61,4 @@ APPROVE + gate PASS ──> status: ready-for-human. A human merges. Agents neve
 - `.agent/work/F-NNN/` — `proposal.md`, `apply-log.md`, `review-K.md`, `attack/`
 - `.agent/reports/` — gate reports (`gate-*.md` / `.json`)
 - `.agent/hpcgate.json` — gate config (human-owned)
+- `.cursor/skills/hpc-improver/` — the loop the agent follows (protected)
